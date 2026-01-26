@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gmail Summarizer - AI-Powered Email Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📧 Gmail Summarizer</h1>
+      <p class="subtitle">AI-powered email analysis with smart categorization & reply generation</p>
+    </header>
+
+    <div class="auth-section">
+      <div class="auth-status">
+        <span class="status-indicator" id="statusIndicator"></span>
+        <span id="authStatus">Checking authentication...</span>
+      </div>
+      <div class="btn-group">
+        <button id="authBtn" class="btn primary">
+          <span>🔐</span> Sign in with Google
+        </button>
+        <button id="logoutBtn" class="btn danger" style="display: none;">
+          <span>🚪</span> Logout
+        </button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <div class="input-group">
+          <label for="maxEmails">Max emails to scan</label>
+          <input id="maxEmails" type="number" value="50" min="10" max="100" step="10" />
+        </div>
+        <div class="input-group">
+          <label for="topEmails">Number to fetch</label>
+          <input id="topEmails" type="number" value="10" min="1" max="50" />
+        </div>
+      </div>
+      <div class="btn-group">
+        <button id="fetchBtn" class="btn primary" disabled>
+          <span>📥</span> Fetch & Analyze Emails
+        </button>
+      </div>
+    </div>
+
+    <div id="emailsPanel" class="panel" style="display: none;">
+      <div class="panel-header">
+        <h2 class="panel-title">📬 Your Emails (Auto-Categorized)</h2>
+        <span class="badge" id="emailCount">0 emails</span>
+      </div>
+      <div id="emails"></div>
+    </div>
+
+    <footer>
+      <p>Built by Piyangshu Banik | © 2026</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
