@@ -5,70 +5,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const emailsDiv = document.getElementById("emails");
   const emailsPanel = document.getElementById("emailsPanel");
   const emailCount = document.getElementById("emailCount");
-  const themeToggle = document.getElementById("themeToggle");
-  const themeIcon = document.getElementById("themeIcon");
-  const themeLabel = document.getElementById("themeLabel");
 
   let cachedEmails = [];
-  let emailCategories = {};
-  let expandedEmailId = null;
+  let emailCategories = {}; // Store categories: {emailId: "critical"}
+  let expandedEmailId = null; // Track which email is expanded
 
-  // Theme Toggle Functionality
-  function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.body.setAttribute('data-theme', savedTheme);
-    updateThemeButton(savedTheme);
-    createParticles();
-  }
-
-  function updateThemeButton(theme) {
-    if (theme === 'light') {
-      themeIcon.textContent = '☀️';
-      themeLabel.textContent = 'Light';
-    } else {
-      themeIcon.textContent = '🌙';
-      themeLabel.textContent = 'Dark';
-    }
-  }
-
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeButton(newTheme);
-    
-    // Recreate particles with new theme
-    createParticles();
-  });
-
-  // Create animated background particles
-  function createParticles() {
-    const particlesContainer = document.getElementById('particles');
-    particlesContainer.innerHTML = '';
-    
-    const particleCount = 30;
-    for (let i = 0; i < particleCount; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'particle';
-      
-      const size = Math.random() * 6 + 2;
-      const left = Math.random() * 100;
-      const duration = Math.random() * 20 + 15;
-      const delay = Math.random() * 5;
-      
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-      particle.style.left = `${left}%`;
-      particle.style.animationDuration = `${duration}s`;
-      particle.style.animationDelay = `${delay}s`;
-      
-      particlesContainer.appendChild(particle);
-    }
-  }
-
-  // Authentication
+  // Always send credentials (cookies) with every request
   async function checkAuth() {
     try {
       const res = await fetch("/status", { credentials: "include" });
@@ -100,7 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const r = await fetch("/auth-url", { credentials: "include" });
       const { url } = await r.json();
       window.open(url, "_blank", "width=600,height=600");
-
+      
+      // Poll for auth status
       const interval = setInterval(async () => {
         await checkAuth();
         const res = await fetch("/status", { credentials: "include" });
@@ -115,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Logout
+  // Proper logout
   logoutBtn.onclick = async () => {
     try {
       await fetch("/logout", { credentials: "include" });
@@ -130,12 +73,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Fetch emails
+  // Fetch emails and auto-categorize
   fetchBtn.onclick = async () => {
     try {
       emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Fetching emails...</div>`;
       emailsPanel.style.display = "block";
-
+      
       const res = await fetch("/fetch-emails", {
         method: "POST",
         credentials: "include",
@@ -155,8 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Auto-categorize emails (with fallback)
       emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Analyzing email priorities...</div>`;
-
+      
       try {
         const catRes = await fetch("/categorize-emails", {
           method: "POST",
@@ -166,11 +110,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const catData = await catRes.json();
-
+        
+        // Show warning if categorization used fallback
         if (catData.warning) {
           console.warn(catData.warning);
         }
-
+        
+        // Map categories to email IDs
         if (catData.categories && Array.isArray(catData.categories)) {
           catData.categories.forEach(cat => {
             if (cachedEmails[cat.index]) {
@@ -180,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } catch (catErr) {
         console.error("Categorization failed:", catErr);
+        // Continue with default categories - don't block rendering
         cachedEmails.forEach(email => {
           emailCategories[email.id] = "important";
         });
@@ -188,11 +135,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderEmails();
     } catch (err) {
       console.error("Fetch error:", err);
-      emailsDiv.innerHTML = `<div class="error">❌ Failed to fetch emails: ${err.message}</div>`;
+      emailsDiv.innerHTML = `<div class="error">Failed to fetch emails: ${err.message}</div>`;
     }
   };
 
-  // Render emails
+  // Render emails grouped by category
   function renderEmails() {
     if (!cachedEmails.length) {
       emailsDiv.innerHTML = "<p>No emails fetched.</p>";
@@ -201,6 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     emailCount.textContent = `${cachedEmails.length} emails`;
 
+    // Group emails by category
     const grouped = {
       critical: [],
       "very-important": [],
@@ -213,12 +161,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (grouped[category]) {
         grouped[category].push(email);
       } else {
-        grouped["important"].push(email);
+        grouped["important"].push(email); // Fallback
       }
     });
 
+    // Render grouped emails
     let html = "";
-
+    
     const categoryConfig = {
       critical: { label: "🚨 Critical", color: "#dc2626" },
       "very-important": { label: "⚡ Very Important", color: "#ea580c" },
@@ -232,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const config = categoryConfig[category];
         html += `
           <div class="category-section">
-            <div class="category-header" style="border-left: 6px solid ${config.color}">
+            <div class="category-header" style="border-left: 4px solid ${config.color}">
               <span class="category-title">${config.label}</span>
               <span class="category-count">${emails.length}</span>
             </div>
@@ -247,11 +196,11 @@ document.addEventListener("DOMContentLoaded", () => {
     emailsDiv.innerHTML = html || "<p>No emails to display.</p>";
   }
 
-  // Render email item
+  // Render individual email item
   function renderEmailItem(email, category) {
     const isExpanded = expandedEmailId === email.id;
     const categoryClass = `category-${category}`;
-
+    
     return `
       <div class="email-item ${categoryClass}" id="email-${email.id}">
         <div class="email-header">
@@ -260,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="email-from">From: ${escapeHtml(email.from)}</div>
         <div class="email-snippet">${escapeHtml(email.snippet)}</div>
-
+        
         <div class="email-actions">
           <button class="email-btn" onclick="viewEmail('${email.id}')">👁️ View</button>
           <button class="email-btn" onclick="summarizeEmail('${email.id}')">🧠 Summary</button>
@@ -279,13 +228,14 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Escape HTML to prevent XSS
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // View email
+  // View full email (inline expansion)
   window.viewEmail = async (id) => {
     try {
       if (expandedEmailId === id) {
@@ -301,11 +251,11 @@ document.addEventListener("DOMContentLoaded", () => {
       expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Loading email...</div>`;
 
       const res = await fetch(`/email/${id}`, { credentials: "include" });
-
+      
       if (!res.ok) {
         throw new Error("Failed to load email");
       }
-
+      
       const email = await res.json();
 
       expandedDiv.innerHTML = `
@@ -328,12 +278,12 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("View email error:", err);
       const expandedDiv = document.getElementById(`expanded-${id}`);
       if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">❌ Failed to load email: ${err.message}</div>`;
+        expandedDiv.innerHTML = `<div class="error">Failed to load email: ${err.message}</div>`;
       }
     }
   };
 
-  // Summarize email
+  // Summarize email (inline expansion)
   window.summarizeEmail = async (id) => {
     try {
       if (expandedEmailId === id) {
@@ -380,12 +330,12 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Summary error:", err);
       const expandedDiv = document.getElementById(`expanded-${id}`);
       if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">❌ ${err.message}</div>`;
+        expandedDiv.innerHTML = `<div class="error">${err.message}</div>`;
       }
     }
   };
 
-  // Generate reply
+  // Generate smart reply (inline expansion)
   window.generateReply = async (id) => {
     const email = cachedEmails.find((e) => e.id === id);
     if (!email) return;
@@ -417,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
     scrollToEmail(id);
   };
 
-  // Generate reply with tone
+  // Generate reply with selected tone
   window.generateReplyWithTone = async (id) => {
     try {
       const email = cachedEmails.find((e) => e.id === id);
@@ -425,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const tone = document.getElementById(`replyTone-${id}`).value;
       const outputDiv = document.getElementById(`reply-output-${id}`);
-
+      
       outputDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Generating reply...</div>`;
 
       const res = await fetch("/generate-reply", {
@@ -455,26 +405,26 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Reply generation error:", err);
       const outputDiv = document.getElementById(`reply-output-${id}`);
       if (outputDiv) {
-        outputDiv.innerHTML = `<div class="error">❌ ${err.message}</div>`;
+        outputDiv.innerHTML = `<div class="error">${err.message}</div>`;
       }
     }
   };
 
-  // Copy reply
+  // Copy reply to clipboard
   window.copyReply = (id) => {
     const replyDiv = document.querySelector(`#reply-output-${id} .reply-text`);
     if (!replyDiv) return;
-
+    
     const replyText = replyDiv.innerText;
     navigator.clipboard.writeText(replyText).then(() => {
-      alert("✅ Reply copied to clipboard!");
+      alert("Reply copied to clipboard!");
     }).catch(err => {
       console.error("Copy failed:", err);
-      alert("❌ Failed to copy to clipboard");
+      alert("Failed to copy to clipboard");
     });
   };
 
-  // Change category
+  // Change email category
   window.changeCategory = (id, newCategory) => {
     if (newCategory) {
       emailCategories[id] = newCategory;
@@ -483,13 +433,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Close expanded
+  // Close expanded section
   window.closeExpanded = () => {
     expandedEmailId = null;
     renderEmails();
   };
 
-  // Scroll to email
+  // Scroll to email smoothly
   function scrollToEmail(id) {
     setTimeout(() => {
       const element = document.getElementById(`email-${id}`);
@@ -499,7 +449,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
   }
 
-  // Initialize
-  initTheme();
   checkAuth();
 });
