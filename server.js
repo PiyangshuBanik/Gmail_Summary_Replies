@@ -144,6 +144,12 @@ app.get("/status", (req, res) =>
   res.json({ authenticated: !!req.session.tokens })
 );
 
+// Logout
+app.get("/logout", (req, res) => {
+  req.session.tokens = null;
+  res.json({ message: "Logged out" });
+});
+
 // Fetch single email
 app.get("/email/:id", async (req, res) => {
   try {
