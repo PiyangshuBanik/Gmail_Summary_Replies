@@ -1,30 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gmail Summarizer - AI-Powered Email Assistant</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-theme="dark">
+  
+  <!-- Theme Toggle Button -->
+  <div class="theme-toggle-wrapper">
+    <button class="theme-toggle" id="themeToggle">
+      <span class="theme-icon" id="themeIcon">🌙</span>
+      <span class="theme-label" id="themeLabel">Dark</span>
+    </button>
+  </div>
+
+  <!-- Background Particles -->
+  <div class="particles" id="particles"></div>
+
   <div class="container">
     <header>
       <h1>📧 Gmail Summarizer</h1>
-      <p class="subtitle">AI-powered email analysis with smart categorization & reply generation</p>
+      <p class="subtitle">AI-Powered Email Assistant</p>
     </header>
 
     <div class="auth-section">
       <div class="auth-status">
-        <span class="status-indicator" id="statusIndicator"></span>
+        <div class="status-indicator"></div>
         <span id="authStatus">Checking authentication...</span>
       </div>
       <div class="btn-group">
-        <button id="authBtn" class="btn primary">
-          <span>🔐</span> Sign in with Google
+        <button class="btn primary" id="authBtn" style="display: none;">
+          🔐 Sign in with Google
         </button>
-        <button id="logoutBtn" class="btn danger" style="display: none;">
-          <span>🚪</span> Logout
+        <button class="btn danger" id="logoutBtn" style="display: none;">
+          🚪 Logout
         </button>
       </div>
     </div>
@@ -33,31 +45,27 @@
       <div class="control-group">
         <div class="input-group">
           <label for="maxEmails">Max emails to scan</label>
-          <input id="maxEmails" type="number" value="50" min="10" max="100" step="10" />
+          <input type="number" id="maxEmails" value="50" min="1" max="100">
         </div>
         <div class="input-group">
           <label for="topEmails">Number to fetch</label>
-          <input id="topEmails" type="number" value="10" min="1" max="50" />
+          <input type="number" id="topEmails" value="10" min="1" max="50">
         </div>
       </div>
       <div class="btn-group">
-        <button id="fetchBtn" class="btn primary" disabled>
-          <span>📥</span> Fetch & Analyze Emails
+        <button class="btn success" id="fetchBtn" disabled>
+          📥 Fetch & Analyze Emails
         </button>
       </div>
     </div>
 
-    <div id="emailsPanel" class="panel" style="display: none;">
+    <div class="panel" id="emailsPanel" style="display: none;">
       <div class="panel-header">
         <h2 class="panel-title">📬 Your Emails (Auto-Categorized)</h2>
         <span class="badge" id="emailCount">0 emails</span>
       </div>
       <div id="emails"></div>
     </div>
-
-    <footer>
-      <p>Built by Piyangshu Banik | © 2026</p>
-    </footer>
   </div>
 
   <script src="app.js"></script>
