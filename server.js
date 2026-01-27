@@ -13,6 +13,19 @@ const app = express();
 app.use(express.static(__dirname + "/public"));
 app.use(bodyParser.json({ limit: "10mb" }));
 
+
+app.set('trust proxy', 1); // Add this line before app.use(session(...))
+
+app.use(
+  session({
+    name: "gmail_summarizer_session",
+    keys: [process.env.SESSION_SECRET],
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production", // Automatically uses secure cookies on Vercel
+  })
+);
+
 // Security Note: In production, set 'secure: true' if using HTTPS
 app.use(
   session({
