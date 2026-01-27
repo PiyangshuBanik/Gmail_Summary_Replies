@@ -9,7 +9,6 @@
 </head>
 <body data-theme="dark">
   
-  <!-- Theme Toggle Button -->
   <div class="theme-toggle-wrapper">
     <button class="theme-toggle" id="themeToggle">
       <span class="theme-icon" id="themeIcon">🌙</span>
@@ -17,7 +16,6 @@
     </button>
   </div>
 
-  <!-- Background Particles -->
   <div class="particles" id="particles"></div>
 
   <div class="container">
@@ -44,12 +42,8 @@
     <div class="controls">
       <div class="control-group">
         <div class="input-group">
-          <label for="maxEmails">Max emails to scan</label>
-          <input type="number" id="maxEmails" value="50" min="1" max="100">
-        </div>
-        <div class="input-group">
-          <label for="topEmails">Number to fetch</label>
-          <input type="number" id="topEmails" value="10" min="1" max="50">
+          <label for="maxEmails">Emails to Scan</label>
+          <input type="number" id="maxEmails" value="10" min="1" max="200">
         </div>
       </div>
       <div class="btn-group">
@@ -66,6 +60,15 @@
       </div>
       <div id="emails"></div>
     </div>
+
+    <footer>
+      <div class="footer-content">
+        <p>© 2026 AI Email Assistant | Powered by Piyangshu Banik</p>
+        <div class="footer-links">
+          <span class="status-dot"></span> System Ready
+        </div>
+      </div>
+    </footer>
   </div>
 
   <script src="app.js"></script>

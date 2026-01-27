@@ -55,7 +55,7 @@ function createOAuthClient() {
 ========================= */
 function getGeminiModel() {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Using stable flash model
+  return genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); // Using stable flash model
 }
 
 async function generateWithRetry(model, prompt, maxRetries = 3) {
