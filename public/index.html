@@ -1,40 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
   <title>Gmail Summarizer - AI-Powered Email Assistant</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body data-theme="dark">
-  
-  <div class="theme-toggle-wrapper">
-    <button class="theme-toggle" id="themeToggle">
-      <span class="theme-icon" id="themeIcon">🌙</span>
-      <span class="theme-label" id="themeLabel">Dark</span>
-    </button>
-  </div>
-
-  <div class="particles" id="particles"></div>
-
+<body>
   <div class="container">
     <header>
       <h1>📧 Gmail Summarizer</h1>
-      <p class="subtitle">AI-Powered Email Assistant</p>
+      <p class="subtitle">AI-powered email analysis with smart categorization & reply generation</p>
     </header>
 
     <div class="auth-section">
       <div class="auth-status">
-        <div class="status-indicator"></div>
+        <span class="status-indicator" id="statusIndicator"></span>
         <span id="authStatus">Checking authentication...</span>
       </div>
       <div class="btn-group">
-        <button class="btn primary" id="authBtn" style="display: none;">
-          🔐 Sign in with Google
+        <button id="authBtn" class="btn primary">
+          <span>🔐</span> Sign in with Google
         </button>
-        <button class="btn danger" id="logoutBtn" style="display: none;">
-          🚪 Logout
+        <button id="logoutBtn" class="btn danger" style="display: none;">
+          <span>🚪</span> Logout
         </button>
       </div>
     </div>
@@ -42,18 +32,22 @@
     <div class="controls">
       <div class="control-group">
         <div class="input-group">
-          <label for="maxEmails">Emails to Scan</label>
-          <input type="number" id="maxEmails" value="10" min="1" max="200">
+          <label for="maxEmails">Max emails to scan</label>
+          <input id="maxEmails" type="number" value="50" min="10" max="100" step="10" />
+        </div>
+        <div class="input-group">
+          <label for="topEmails">Number to fetch</label>
+          <input id="topEmails" type="number" value="10" min="1" max="50" />
         </div>
       </div>
       <div class="btn-group">
-        <button class="btn success" id="fetchBtn" disabled>
-          📥 Fetch & Analyze Emails
+        <button id="fetchBtn" class="btn primary" disabled>
+          <span>📥</span> Fetch & Analyze Emails
         </button>
       </div>
     </div>
 
-    <div class="panel" id="emailsPanel" style="display: none;">
+    <div id="emailsPanel" class="panel" style="display: none;">
       <div class="panel-header">
         <h2 class="panel-title">📬 Your Emails (Auto-Categorized)</h2>
         <span class="badge" id="emailCount">0 emails</span>
@@ -62,12 +56,7 @@
     </div>
 
     <footer>
-      <div class="footer-content">
-        <p>© 2026 AI Email Assistant | Powered by Piyangshu Banik</p>
-        <div class="footer-links">
-          <span class="status-dot"></span> System Ready
-        </div>
-      </div>
+      <p>Built by Piyangshu Banik | © 2026</p>
     </footer>
   </div>
 
