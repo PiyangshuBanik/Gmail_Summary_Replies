@@ -5,12 +5,48 @@ document.addEventListener("DOMContentLoaded", () => {
   const emailsDiv = document.getElementById("emails");
   const emailsPanel = document.getElementById("emailsPanel");
   const emailCount = document.getElementById("emailCount");
+  
+  // Theme Toggle Elements
+  const themeToggle = document.getElementById("themeToggle");
+  const themeIcon = document.getElementById("themeIcon");
+  const themeLabel = document.getElementById("themeLabel");
 
   let cachedEmails = [];
-  let emailCategories = {}; // Store categories: {emailId: "critical"}
-  let expandedEmailId = null; // Track which email is expanded
+  let emailCategories = {}; 
+  let expandedEmailId = null;
 
-  // Always send credentials (cookies) with every request
+  /* =========================
+     THEME LOGIC
+  ========================= */
+  function initTheme() {
+    // Check for saved theme or default to 'dark'
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+    updateThemeUI(savedTheme);
+  }
+
+  function updateThemeUI(theme) {
+    if (theme === 'light') {
+      themeIcon.textContent = '☀️';
+      themeLabel.textContent = 'Light';
+    } else {
+      themeIcon.textContent = '🌙';
+      themeLabel.textContent = 'Dark';
+    }
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = document.body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeUI(newTheme);
+  });
+
+  /* =========================
+     AUTHENTICATION
+  ========================= */
   async function checkAuth() {
     try {
       const res = await fetch("/status", { credentials: "include" });
@@ -36,20 +72,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Google OAuth login
   authBtn.onclick = async () => {
     try {
       const r = await fetch("/auth-url", { credentials: "include" });
       const { url } = await r.json();
-      window.open(url, "_blank", "width=600,height=600");
+      const authWindow = window.open(url, "_blank", "width=600,height=600");
       
-      // Poll for auth status
       const interval = setInterval(async () => {
-        await checkAuth();
+        if (authWindow.closed) {
+          clearInterval(interval);
+          checkAuth();
+          return;
+        }
         const res = await fetch("/status", { credentials: "include" });
         const data = await res.json();
         if (data.authenticated) {
           clearInterval(interval);
+          checkAuth();
         }
       }, 2000);
     } catch (err) {
@@ -58,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Proper logout
   logoutBtn.onclick = async () => {
     try {
       await fetch("/logout", { credentials: "include" });
@@ -73,22 +111,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Fetch emails and auto-categorize
+  /* =========================
+     EMAIL ACTIONS
+  ========================= */
   fetchBtn.onclick = async () => {
     try {
       emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Fetching emails...</div>`;
       emailsPanel.style.display = "block";
       
+      // Get limit from HTML input
+      const maxEmailsInput = document.getElementById("maxEmails");
+      let limit = parseInt(maxEmailsInput?.value) || 10;
+
       const res = await fetch("/fetch-emails", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxEmails: 50, top: 10 }),
+        body: JSON.stringify({ maxResults: limit }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch emails: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`Failed to fetch emails: ${res.statusText}`);
 
       const data = await res.json();
       cachedEmails = data.emails || [];
@@ -98,7 +140,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Auto-categorize emails (with fallback)
       emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Analyzing email priorities...</div>`;
       
       try {
@@ -110,13 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const catData = await catRes.json();
-        
-        // Show warning if categorization used fallback
-        if (catData.warning) {
-          console.warn(catData.warning);
-        }
-        
-        // Map categories to email IDs
         if (catData.categories && Array.isArray(catData.categories)) {
           catData.categories.forEach(cat => {
             if (cachedEmails[cat.index]) {
@@ -126,10 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } catch (catErr) {
         console.error("Categorization failed:", catErr);
-        // Continue with default categories - don't block rendering
-        cachedEmails.forEach(email => {
-          emailCategories[email.id] = "important";
-        });
+        cachedEmails.forEach(email => emailCategories[email.id] = "important");
       }
 
       renderEmails();
@@ -139,7 +170,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Render emails grouped by category
   function renderEmails() {
     if (!cachedEmails.length) {
       emailsDiv.innerHTML = "<p>No emails fetched.</p>";
@@ -148,26 +178,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     emailCount.textContent = `${cachedEmails.length} emails`;
 
-    // Group emails by category
-    const grouped = {
-      critical: [],
-      "very-important": [],
-      important: [],
-      "less-important": []
-    };
+    const grouped = { critical: [], "very-important": [], important: [], "less-important": [] };
 
     cachedEmails.forEach(email => {
       const category = emailCategories[email.id] || "important";
-      if (grouped[category]) {
-        grouped[category].push(email);
-      } else {
-        grouped["important"].push(email); // Fallback
-      }
+      if (grouped[category]) grouped[category].push(email);
+      else grouped["important"].push(email);
     });
 
-    // Render grouped emails
     let html = "";
-    
     const categoryConfig = {
       critical: { label: "🚨 Critical", color: "#dc2626" },
       "very-important": { label: "⚡ Very Important", color: "#ea580c" },
@@ -181,35 +200,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const config = categoryConfig[category];
         html += `
           <div class="category-section">
-            <div class="category-header" style="border-left: 4px solid ${config.color}">
+            <div class="category-header">
               <span class="category-title">${config.label}</span>
               <span class="category-count">${emails.length}</span>
             </div>
             <div class="category-emails">
               ${emails.map(email => renderEmailItem(email, category)).join("")}
             </div>
-          </div>
-        `;
+          </div>`;
       }
     });
 
     emailsDiv.innerHTML = html || "<p>No emails to display.</p>";
   }
 
-  // Render individual email item
   function renderEmailItem(email, category) {
     const isExpanded = expandedEmailId === email.id;
-    const categoryClass = `category-${category}`;
-    
     return `
-      <div class="email-item ${categoryClass}" id="email-${email.id}">
+      <div class="email-item category-${category}" id="email-${email.id}">
         <div class="email-header">
           <div class="email-subject">${escapeHtml(email.subject)}</div>
           <div class="email-date">${new Date(email.date).toLocaleString()}</div>
         </div>
         <div class="email-from">From: ${escapeHtml(email.from)}</div>
         <div class="email-snippet">${escapeHtml(email.snippet)}</div>
-        
         <div class="email-actions">
           <button class="email-btn" onclick="viewEmail('${email.id}')">👁️ View</button>
           <button class="email-btn" onclick="summarizeEmail('${email.id}')">🧠 Summary</button>
@@ -222,20 +236,19 @@ document.addEventListener("DOMContentLoaded", () => {
             <option value="less-important">📮 Less Important</option>
           </select>
         </div>
-
         ${isExpanded ? `<div class="email-expanded" id="expanded-${email.id}"></div>` : ""}
-      </div>
-    `;
+      </div>`;
   }
 
-  // Escape HTML to prevent XSS
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // View full email (inline expansion)
+  /* =========================
+     WINDOW HELPER FUNCTIONS
+  ========================= */
   window.viewEmail = async (id) => {
     try {
       if (expandedEmailId === id) {
@@ -243,211 +256,99 @@ document.addEventListener("DOMContentLoaded", () => {
         renderEmails();
         return;
       }
-
       expandedEmailId = id;
       renderEmails();
-
       const expandedDiv = document.getElementById(`expanded-${id}`);
       expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Loading email...</div>`;
-
       const res = await fetch(`/email/${id}`, { credentials: "include" });
-      
-      if (!res.ok) {
-        throw new Error("Failed to load email");
-      }
-      
       const email = await res.json();
-
       expandedDiv.innerHTML = `
         <div class="email-view">
-          <div class="view-header">
-            <h3>📧 Full Email</h3>
-            <button class="close-btn" onclick="closeExpanded()">✕</button>
-          </div>
+          <div class="view-header"><h3>📧 Full Email</h3><button class="close-btn" onclick="closeExpanded()">✕</button></div>
           <div class="view-content">
             <p><strong>From:</strong> ${escapeHtml(email.from)}</p>
             <p><strong>Subject:</strong> ${escapeHtml(email.subject)}</p>
-            <p><strong>Date:</strong> ${email.date}</p>
             <div class="email-body">${escapeHtml(email.body)}</div>
           </div>
-        </div>
-      `;
-
+        </div>`;
       scrollToEmail(id);
     } catch (err) {
-      console.error("View email error:", err);
-      const expandedDiv = document.getElementById(`expanded-${id}`);
-      if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">Failed to load email: ${err.message}</div>`;
-      }
+      document.getElementById(`expanded-${id}`).innerHTML = `<div class="error">Failed to load email.</div>`;
     }
   };
 
-  // Summarize email (inline expansion)
   window.summarizeEmail = async (id) => {
     try {
-      if (expandedEmailId === id) {
-        expandedEmailId = null;
-        renderEmails();
-        return;
-      }
-
+      if (expandedEmailId === id) { expandedEmailId = null; renderEmails(); return; }
       const email = cachedEmails.find((e) => e.id === id);
-      if (!email) return;
-
       expandedEmailId = id;
       renderEmails();
-
       const expandedDiv = document.getElementById(`expanded-${id}`);
       expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Generating summary...</div>`;
-
       const res = await fetch("/summarize-email", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to generate summary");
-      }
-
       const data = await res.json();
-
       expandedDiv.innerHTML = `
         <div class="email-view">
-          <div class="view-header">
-            <h3>✨ AI Summary</h3>
-            <button class="close-btn" onclick="closeExpanded()">✕</button>
-          </div>
+          <div class="view-header"><h3>✨ AI Summary</h3><button class="close-btn" onclick="closeExpanded()">✕</button></div>
           <div class="summary-content">${escapeHtml(data.summary).replace(/\n/g, "<br>")}</div>
-        </div>
-      `;
-
+        </div>`;
       scrollToEmail(id);
     } catch (err) {
-      console.error("Summary error:", err);
-      const expandedDiv = document.getElementById(`expanded-${id}`);
-      if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">${err.message}</div>`;
-      }
+      document.getElementById(`expanded-${id}`).innerHTML = `<div class="error">Summary failed.</div>`;
     }
   };
 
-  // Generate smart reply (inline expansion)
-  window.generateReply = async (id) => {
-    const email = cachedEmails.find((e) => e.id === id);
-    if (!email) return;
-
+  window.generateReply = (id) => {
     expandedEmailId = id;
     renderEmails();
-
-    const expandedDiv = document.getElementById(`expanded-${id}`);
-    expandedDiv.innerHTML = `
+    document.getElementById(`expanded-${id}`).innerHTML = `
       <div class="email-view">
-        <div class="view-header">
-          <h3>✉️ Generate Reply</h3>
-          <button class="close-btn" onclick="closeExpanded()">✕</button>
-        </div>
+        <div class="view-header"><h3>✉️ Generate Reply</h3><button class="close-btn" onclick="closeExpanded()">✕</button></div>
         <div class="reply-options">
-          <label>Tone:</label>
           <select id="replyTone-${id}" class="tone-select">
             <option value="professional">Professional</option>
             <option value="friendly">Friendly</option>
-            <option value="brief">Brief</option>
-            <option value="detailed">Detailed</option>
           </select>
           <button class="email-btn" onclick="generateReplyWithTone('${id}')">Generate</button>
         </div>
         <div id="reply-output-${id}"></div>
-      </div>
-    `;
-
-    scrollToEmail(id);
+      </div>`;
   };
 
-  // Generate reply with selected tone
   window.generateReplyWithTone = async (id) => {
-    try {
-      const email = cachedEmails.find((e) => e.id === id);
-      if (!email) return;
-
-      const tone = document.getElementById(`replyTone-${id}`).value;
-      const outputDiv = document.getElementById(`reply-output-${id}`);
-      
-      outputDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Generating reply...</div>`;
-
-      const res = await fetch("/generate-reply", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, tone }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to generate reply");
-      }
-
-      const data = await res.json();
-
-      outputDiv.innerHTML = `
-        <div class="reply-content">
-          <div class="reply-text">${escapeHtml(data.reply).replace(/\n/g, "<br>")}</div>
-          <div class="reply-actions">
-            <button class="email-btn" onclick="copyReply('${id}')">📋 Copy</button>
-            <button class="email-btn" onclick="generateReplyWithTone('${id}')">🔄 Regenerate</button>
-          </div>
-        </div>
-      `;
-    } catch (err) {
-      console.error("Reply generation error:", err);
-      const outputDiv = document.getElementById(`reply-output-${id}`);
-      if (outputDiv) {
-        outputDiv.innerHTML = `<div class="error">${err.message}</div>`;
-      }
-    }
-  };
-
-  // Copy reply to clipboard
-  window.copyReply = (id) => {
-    const replyDiv = document.querySelector(`#reply-output-${id} .reply-text`);
-    if (!replyDiv) return;
-    
-    const replyText = replyDiv.innerText;
-    navigator.clipboard.writeText(replyText).then(() => {
-      alert("Reply copied to clipboard!");
-    }).catch(err => {
-      console.error("Copy failed:", err);
-      alert("Failed to copy to clipboard");
+    const tone = document.getElementById(`replyTone-${id}`).value;
+    const outputDiv = document.getElementById(`reply-output-${id}`);
+    outputDiv.innerHTML = `<div class="spinner"></div>`;
+    const res = await fetch("/generate-reply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: cachedEmails.find(e => e.id === id), tone }),
     });
+    const data = await res.json();
+    outputDiv.innerHTML = `<div class="reply-text">${escapeHtml(data.reply).replace(/\n/g, "<br>")}</div>
+    <button class="email-btn" onclick="copyReply('${id}')">📋 Copy</button>`;
   };
 
-  // Change email category
+  window.copyReply = (id) => {
+    const text = document.querySelector(`#reply-output-${id} .reply-text`).innerText;
+    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
+  };
+
   window.changeCategory = (id, newCategory) => {
-    if (newCategory) {
-      emailCategories[id] = newCategory;
-      expandedEmailId = null;
-      renderEmails();
-    }
+    if (newCategory) { emailCategories[id] = newCategory; expandedEmailId = null; renderEmails(); }
   };
 
-  // Close expanded section
-  window.closeExpanded = () => {
-    expandedEmailId = null;
-    renderEmails();
-  };
+  window.closeExpanded = () => { expandedEmailId = null; renderEmails(); };
 
-  // Scroll to email smoothly
   function scrollToEmail(id) {
-    setTimeout(() => {
-      const element = document.getElementById(`email-${id}`);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 100);
+    setTimeout(() => document.getElementById(`email-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
   }
 
+  // Initializations
+  initTheme();
   checkAuth();
 });
