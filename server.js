@@ -144,9 +144,24 @@ app.get("/status", (req, res) =>
   res.json({ authenticated: !!req.session.tokens })
 );
 
+// ✅ LOGOUT ROUTE (FIXED)
+app.get("/logout", (req, res) => {
+  try {
+    // Clear the session
+    req.session = null;
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Fetch single email
 app.get("/email/:id", async (req, res) => {
   try {
+    if (!req.session.tokens) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const gmail = getGmailClient(req.session.tokens);
     const msg = await gmail.users.messages.get({
       userId: "me",
@@ -219,20 +234,24 @@ ${req.body.emails.map((e, i) => `Email ${i}: ${e.subject}`).join("\n")}`;
     const text = result.response.text().replace(/```json|```/g, "").trim();
     res.json({ categories: JSON.parse(text) });
   } catch (err) {
+    console.error("Categorization error:", err.message);
     res.json({
       categories: req.body.emails.map((_, i) => ({
         index: i,
         category: "important",
       })),
+      warning: "AI categorization failed, using default categories"
     });
   }
 });
 
-/* =========================
-   ✅ FIXED SUMMARIZE ROUTE
-========================= */
+// Summarize email
 app.post("/summarize-email", async (req, res) => {
   try {
+    if (!req.session.tokens) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const model = getGeminiModel();
 
     const result = await generateWithRetry(
@@ -242,27 +261,36 @@ app.post("/summarize-email", async (req, res) => {
 
     const summaryText = result.response.text();
 
-    // 🔥 DEBUG LOG
-    console.log("SUMMARY FROM GEMINI:\n", summaryText);
+    console.log("SUMMARY GENERATED:", summaryText);
 
     res.json({ summary: summaryText });
   } catch (err) {
     console.error("SUMMARY ERROR:", err.message);
-    res.status(503).json({ error: "AI Busy" });
+    res.status(503).json({ error: "AI service is temporarily busy. Please try again." });
   }
 });
 
 // Generate reply
 app.post("/generate-reply", async (req, res) => {
   try {
+    if (!req.session.tokens) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const model = getGeminiModel();
     const result = await generateWithRetry(
       model,
       `Draft a ${req.body.tone} reply to the following email:\n\n${req.body.email.body}`
     );
-    res.json({ reply: result.response.text() });
+    
+    const replyText = result.response.text();
+    
+    console.log("REPLY GENERATED:", replyText);
+    
+    res.json({ reply: replyText });
   } catch (err) {
-    res.status(503).json({ error: "AI Busy" });
+    console.error("REPLY ERROR:", err.message);
+    res.status(503).json({ error: "AI service is temporarily busy. Please try again." });
   }
 });
 

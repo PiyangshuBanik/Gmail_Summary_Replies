@@ -5,10 +5,43 @@ document.addEventListener("DOMContentLoaded", () => {
   const emailsDiv = document.getElementById("emails");
   const emailsPanel = document.getElementById("emailsPanel");
   const emailCount = document.getElementById("emailCount");
+  const themeToggle = document.getElementById("themeToggle");
 
   let cachedEmails = [];
   let emailCategories = {}; // Store categories: {emailId: "critical"}
   let expandedEmailId = null; // Track which email is expanded
+
+  // ============================================
+  // THEME MANAGEMENT
+  // ============================================
+  
+  // Initialize theme from localStorage or default to light
+  function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }
+
+  // Toggle theme
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    // Add animation class
+    themeToggle.style.transform = 'rotate(360deg)';
+    setTimeout(() => {
+      themeToggle.style.transform = '';
+    }, 300);
+  });
+
+  // Initialize theme on load
+  initTheme();
+
+  // ============================================
+  // AUTHENTICATION
+  // ============================================
 
   // Always send credentials (cookies) with every request
   async function checkAuth() {
@@ -23,13 +56,13 @@ document.addEventListener("DOMContentLoaded", () => {
         logoutBtn.style.display = "inline-flex";
         fetchBtn.disabled = false;
         indicator.classList.add("authenticated");
-        statusText.textContent = "✅ Authenticated";
+        statusText.textContent = "✅ Connected & Ready";
       } else {
         authBtn.style.display = "inline-flex";
         logoutBtn.style.display = "none";
         fetchBtn.disabled = true;
         indicator.classList.remove("authenticated");
-        statusText.textContent = "❌ Not signed in";
+        statusText.textContent = "⚠️ Authentication Required";
       }
     } catch (err) {
       console.error("Auth check failed:", err);
@@ -73,10 +106,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // ============================================
+  // EMAIL FETCHING
+  // ============================================
+
   // Fetch emails and auto-categorize
   fetchBtn.onclick = async () => {
     try {
-      emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Fetching emails...</div>`;
+      emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>Fetching emails from your inbox...</p></div>`;
       emailsPanel.style.display = "block";
       
       const res = await fetch("/fetch-emails", {
@@ -94,12 +131,12 @@ document.addEventListener("DOMContentLoaded", () => {
       cachedEmails = data.emails || [];
 
       if (cachedEmails.length === 0) {
-        emailsDiv.innerHTML = "<p>No emails found in your inbox.</p>";
+        emailsDiv.innerHTML = "<p style='text-align: center; color: var(--text-secondary); padding: 40px;'>No emails found in your inbox.</p>";
         return;
       }
 
       // Auto-categorize emails (with fallback)
-      emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Analyzing email priorities...</div>`;
+      emailsDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>Analyzing email priorities with AI...</p></div>`;
       
       try {
         const catRes = await fetch("/categorize-emails", {
@@ -135,18 +172,22 @@ document.addEventListener("DOMContentLoaded", () => {
       renderEmails();
     } catch (err) {
       console.error("Fetch error:", err);
-      emailsDiv.innerHTML = `<div class="error">Failed to fetch emails: ${err.message}</div>`;
+      emailsDiv.innerHTML = `<div class="error">⚠️ Failed to fetch emails: ${err.message}</div>`;
     }
   };
+
+  // ============================================
+  // EMAIL RENDERING
+  // ============================================
 
   // Render emails grouped by category
   function renderEmails() {
     if (!cachedEmails.length) {
-      emailsDiv.innerHTML = "<p>No emails fetched.</p>";
+      emailsDiv.innerHTML = "<p style='text-align: center; color: var(--text-secondary); padding: 40px;'>No emails fetched yet.</p>";
       return;
     }
 
-    emailCount.textContent = `${cachedEmails.length} emails`;
+    emailCount.textContent = `${cachedEmails.length} email${cachedEmails.length !== 1 ? 's' : ''}`;
 
     // Group emails by category
     const grouped = {
@@ -169,10 +210,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let html = "";
     
     const categoryConfig = {
-      critical: { label: "🚨 Critical", color: "#dc2626" },
-      "very-important": { label: "⚡ Very Important", color: "#ea580c" },
-      important: { label: "📌 Important", color: "#2563eb" },
-      "less-important": { label: "📮 Less Important", color: "#6b7280" }
+      critical: { label: "🚨 Critical", color: "#ef4444" },
+      "very-important": { label: "⚡ Very Important", color: "#f59e0b" },
+      important: { label: "📌 Important", color: "#6366f1" },
+      "less-important": { label: "📮 Less Important", color: "#64748b" }
     };
 
     Object.keys(categoryConfig).forEach(category => {
@@ -193,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    emailsDiv.innerHTML = html || "<p>No emails to display.</p>";
+    emailsDiv.innerHTML = html || "<p style='text-align: center; color: var(--text-secondary); padding: 40px;'>No emails to display.</p>";
   }
 
   // Render individual email item
@@ -235,6 +276,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return div.innerHTML;
   }
 
+  // ============================================
+  // EMAIL ACTIONS
+  // ============================================
+
   // View full email (inline expansion)
   window.viewEmail = async (id) => {
     try {
@@ -248,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderEmails();
 
       const expandedDiv = document.getElementById(`expanded-${id}`);
-      expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Loading email...</div>`;
+      expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading email content...</p></div>`;
 
       const res = await fetch(`/email/${id}`, { credentials: "include" });
       
@@ -278,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("View email error:", err);
       const expandedDiv = document.getElementById(`expanded-${id}`);
       if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">Failed to load email: ${err.message}</div>`;
+        expandedDiv.innerHTML = `<div class="error">⚠️ Failed to load email: ${err.message}</div>`;
       }
     }
   };
@@ -299,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderEmails();
 
       const expandedDiv = document.getElementById(`expanded-${id}`);
-      expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Generating summary...</div>`;
+      expandedDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>Generating AI summary...</p></div>`;
 
       const res = await fetch("/summarize-email", {
         method: "POST",
@@ -330,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Summary error:", err);
       const expandedDiv = document.getElementById(`expanded-${id}`);
       if (expandedDiv) {
-        expandedDiv.innerHTML = `<div class="error">${err.message}</div>`;
+        expandedDiv.innerHTML = `<div class="error">⚠️ ${err.message}</div>`;
       }
     }
   };
@@ -351,7 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button class="close-btn" onclick="closeExpanded()">✕</button>
         </div>
         <div class="reply-options">
-          <label>Tone:</label>
+          <label>Select Tone:</label>
           <select id="replyTone-${id}" class="tone-select">
             <option value="professional">Professional</option>
             <option value="friendly">Friendly</option>
@@ -376,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const tone = document.getElementById(`replyTone-${id}`).value;
       const outputDiv = document.getElementById(`reply-output-${id}`);
       
-      outputDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Generating reply...</div>`;
+      outputDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>Crafting ${tone} reply...</p></div>`;
 
       const res = await fetch("/generate-reply", {
         method: "POST",
@@ -405,7 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Reply generation error:", err);
       const outputDiv = document.getElementById(`reply-output-${id}`);
       if (outputDiv) {
-        outputDiv.innerHTML = `<div class="error">${err.message}</div>`;
+        outputDiv.innerHTML = `<div class="error">⚠️ ${err.message}</div>`;
       }
     }
   };
@@ -417,10 +462,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const replyText = replyDiv.innerText;
     navigator.clipboard.writeText(replyText).then(() => {
-      alert("Reply copied to clipboard!");
+      alert("✅ Reply copied to clipboard!");
     }).catch(err => {
       console.error("Copy failed:", err);
-      alert("Failed to copy to clipboard");
+      alert("❌ Failed to copy to clipboard");
     });
   };
 
